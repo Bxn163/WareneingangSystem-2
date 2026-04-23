@@ -656,7 +656,7 @@ function safeLoad(key, fallback) {
     catch (e) { return fallback; }
 }
 
-// ─── LOKALER STATE (inkl. neuer "activeSessions" für den Online-Status) ──────
+// ─── LOKALER STATE ───────────────────────────────────────────────────────────
 let state = {
     currentUser: null,
     users: [{ email:"admin", password:"123", role:"admin" },{ email:"lager", password:"123", role:"employee" }],
@@ -665,7 +665,7 @@ let state = {
     audit: [],
     masterSuppliers: ["Bechtle","Dell Technologies","Lenovo","Cyberport"],
     masterProducts: ["Notebooks","Monitore","Server","Switches","Peripherie"],
-    activeSessions: {}, // NEU: Speichert den letzten Zeitstempel pro Nutzer
+    activeSessions: {}, 
     settings: safeLoad("lt9_settings", { theme:'light', fontSize:'medium', color:'#2563eb', compact:false, workflow:'dash', sounds:true, dateFormat:'DE' })
 };
 
@@ -679,7 +679,7 @@ db.collection("logitrack").doc("globalState").onSnapshot((doc) => {
         state.audit = data.audit || [];
         state.masterSuppliers = data.masterSuppliers || state.masterSuppliers;
         state.masterProducts = data.masterProducts || state.masterProducts;
-        state.activeSessions = data.activeSessions || {}; // NEU: Online-Status laden
+        state.activeSessions = data.activeSessions || {}; 
     } else {
         save();
     }
@@ -699,13 +699,13 @@ const save = () => {
         audit: state.audit,
         masterSuppliers: state.masterSuppliers,
         masterProducts: state.masterProducts,
-        activeSessions: state.activeSessions // NEU: Online-Status hochladen
+        activeSessions: state.activeSessions 
     }).catch(err => console.error("Cloud-Speicher Fehler:", err));
     
     localStorage.setItem("lt9_settings", JSON.stringify(state.settings));
 };
 
-// ─── NEU: ONLINE-STATUS HEARTBEAT ────────────────────────────────────────────
+// ─── ONLINE-STATUS HEARTBEAT ─────────────────────────────────────────────────
 function pingPresence() {
     if(state.currentUser) {
         state.activeSessions[state.currentUser.email] = Date.now();
@@ -877,7 +877,6 @@ function doLogin() {
         applySettings(); resetWizardTime(); initMasterData(); renderAll();
         logAudit("LOGIN","Benutzer hat sich angemeldet.");
         
-        // NEU: Heartbeat aktivieren (Alle 45 Sekunden ein Ping senden)
         pingPresence();
         setInterval(pingPresence, 45000); 
 
@@ -889,7 +888,6 @@ function doLogin() {
 
 document.getElementById("logoutBtn").addEventListener("click", ()=>{ 
     logAudit("LOGOUT","Abgemeldet."); 
-    // NEU: Status direkt auf offline setzen beim Logout
     if(state.currentUser) {
         delete state.activeSessions[state.currentUser.email];
         save();
@@ -913,7 +911,7 @@ document.querySelectorAll(".nav-item").forEach(item => {
         if(window.innerWidth <= 768) toggleMobileMenu();
         if(item.dataset.page==='dashPage') renderDashboard();
         if(item.dataset.page==='outboundPage') setTimeout(()=>document.getElementById("outBarcode").focus(),80);
-        if(item.dataset.page==='userPage') renderUsers(); // Force refresh um Online-Status zu aktualisieren
+        if(item.dataset.page==='userPage') renderUsers(); 
     });
 });
 
@@ -1310,15 +1308,13 @@ window.editHist=(id)=>{
     if(n!==null){ logAudit("HISTORIE KORRIGIERT",`ID ${id}: ${n}`); rec.note=n; save(); renderHistory(); }
 };
 
-// ─── NEU: BENUTZER MIT ONLINE-STATUS RENDERN ──────────────────────────────────
+// ─── BENUTZER MIT ONLINE-STATUS RENDERN ──────────────────────────────────────
 function renderUsers(){
     const now = Date.now();
     document.getElementById("userTableBody").innerHTML=state.users.map(u=>{
-        // Prüfen, wann der Nutzer zuletzt aktiv war (Threshold: 90 Sekunden)
         const lastActive = state.activeSessions[u.email] || 0;
         const isOnline = (now - lastActive) < 90000; 
         
-        // Anzeige-Label generieren
         const statusHtml = isOnline 
             ? `<div style="color:var(--success); font-size:0.75rem; margin-top:4px;"><i class="fas fa-circle" style="font-size:0.6rem; vertical-align:middle;"></i> Online</div>`
             : `<div style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;"><i class="far fa-circle" style="font-size:0.6rem; vertical-align:middle;"></i> Offline</div>`;
@@ -1327,11 +1323,33 @@ function renderUsers(){
             <td><b>${u.email}</b>${statusHtml}</td>
             <td><span class="badge ${u.role==='admin'?'badge-danger':'badge-success'}">${u.role}</span></td>
             <td>
-            <button class="btn btn-sm btn-danger" onclick="delUser('${u.email}')" ${u.email===state.currentUser.email?'disabled':''}>
-            <i class="fas fa-trash"></i></button></td>
+            <div style="display:flex; gap:6px;">
+                <button class="btn btn-sm btn-outline" onclick="resetPassword('${u.email}')" title="Passwort ändern">
+                    <i class="fas fa-key"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="delUser('${u.email}')" ${u.email===state.currentUser.email?'disabled':''} title="Benutzer löschen">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            </td>
         </tr>`;
     }).join("");
 }
+
+// ─── NEU: PASSWORT RESET FUNKTION ────────────────────────────────────────────
+window.resetPassword = (email) => {
+    const newPw = prompt(`Neues Passwort für den Benutzer "${email}" festlegen:`);
+    if(newPw) {
+        const user = state.users.find(u => u.email === email);
+        if(user) {
+            user.password = newPw;
+            logAudit("BENUTZER", `Passwort für ${email} durch Admin zurückgesetzt.`);
+            save();
+            alert(`Das Passwort für ${email} wurde erfolgreich geändert.`);
+            renderUsers();
+        }
+    }
+};
 
 document.getElementById("saveUserBtn").addEventListener("click",()=>{
     const e=document.getElementById("newUserEmail").value, p=document.getElementById("newUserPassword").value;
