@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LogiTrack Enterprise V9 - Pro Storage</title>
+    <title>LogiTrack Enterprise V9 - Ultimate Pro</title>
     
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -53,6 +53,10 @@
         .badge-out     { background: rgba(124,58,237,.12); color: #7c3aed; }
         .badge-gray    { background: rgba(100,116,139,.12); color: #64748b; }
 
+        /* Low Stock Highlighting */
+        tr.low-stock { background-color: rgba(220, 38, 38, 0.05); }
+        tr.low-stock td { border-bottom: 1px solid rgba(220, 38, 38, 0.15); }
+
         /* Layout */
         #app { display: flex; flex-direction: row; height: 100vh; width: 100vw; overflow: hidden; }
         .sidebar { background: var(--primary); color: #fff; padding: 20px 16px; width: var(--sidebar-width); flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto; border-right: 1px solid rgba(255,255,255,.06); z-index: 1000; transition: transform 0.3s ease; }
@@ -72,10 +76,7 @@
         /* Mobile Header & Overlay */
         .mobile-header { display: none; background: var(--card-bg); padding: 14px 20px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); z-index: 900; }
         .mobile-header-brand { font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; gap: 10px; color: var(--text-main); }
-        
-        /* Verbesserter Mobile Menu Button (Großer Touch-Bereich) */
         #mobileMenuBtn { padding: 12px 18px; font-size: 1.4rem; border-radius: 10px; }
-        
         .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; backdrop-filter: blur(2px); opacity: 0; transition: opacity 0.3s; }
 
         /* Grid Utilities */
@@ -104,7 +105,7 @@
 
         /* Table */
         .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.875rem; min-width: 600px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.875rem; min-width: 650px; }
         th { text-align: left; padding: 12px 16px; background: var(--bg); font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); border-bottom: 2px solid var(--border); font-weight: 700; letter-spacing: .5px; }
         td { padding: 13px 16px; border-bottom: 1px solid var(--border); }
         tr:last-child td { border-bottom: none; }
@@ -142,7 +143,7 @@
         #label-preview-box .lbl-text strong { font-size: 13px; display: block; margin-bottom: 2px; }
 
         /* Stats */
-        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
         .stat-card { background: var(--card-bg); padding: 18px 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); }
         .stat-label { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: .5px; margin-bottom: 6px; }
         .stat-value { font-size: 2rem; font-weight: 700; letter-spacing: -1px; line-height: 1; }
@@ -173,11 +174,14 @@
         }
 
         /* RESPONSIVE DESIGN */
+        @media (max-width: 1200px) {
+            .stat-grid { grid-template-columns: repeat(3, 1fr); }
+        }
         @media (max-width: 1024px) {
-            .stat-grid { grid-template-columns: repeat(2, 1fr); }
             .grid-2-auto { grid-template-columns: 1fr; }
         }
         @media (max-width: 768px) {
+            .stat-grid { grid-template-columns: repeat(2, 1fr); }
             .mobile-header { display: flex; }
             .sidebar { position: fixed; left: -100%; top: 0; bottom: 0; height: 100vh; transform: translateX(0); box-shadow: 4px 0 15px rgba(0,0,0,0.3); }
             .sidebar.open { left: 0; }
@@ -343,7 +347,8 @@
                     <div class="stat-card"><div class="stat-label">Eingänge Heute</div><div class="stat-value" id="statToday" style="color:var(--accent)">0</div></div>
                     <div class="stat-card"><div class="stat-label">Ausgänge Heute</div><div class="stat-value" id="statOutToday" style="color:var(--success)">0</div></div>
                     <div class="stat-card"><div class="stat-label">Teile im Bestand</div><div class="stat-value" id="statTotalItems">0</div></div>
-                    <div class="stat-card"><div class="stat-label">Sperrlager</div><div class="stat-value" id="statIssues" style="color:var(--danger)">0</div></div>
+                    <div class="stat-card"><div class="stat-label" style="color:var(--danger);">Kritischer Bestand</div><div class="stat-value" id="statCritical" style="color:var(--danger)">0</div></div>
+                    <div class="stat-card"><div class="stat-label">Sperrlager</div><div class="stat-value" id="statIssues" style="color:var(--warning)">0</div></div>
                 </div>
                 <div class="grid-2-auto">
                     <div class="card">
@@ -487,7 +492,7 @@
                     </div>
                     <div class="table-responsive">
                         <table>
-                            <thead><tr><th>Barcode</th><th>Kategorie</th><th>Bestand</th><th>Lagerplatz</th><th>Drucken</th><th class="admin-only">Aktion</th></tr></thead>
+                            <thead><tr><th>Barcode</th><th>Kategorie</th><th>Bestand</th><th>Min.</th><th>Lagerplatz</th><th>Drucken</th><th class="admin-only">Aktion</th></tr></thead>
                             <tbody id="inventoryBody"></tbody>
                         </table>
                     </div>
@@ -596,8 +601,8 @@
                     <p style="margin-bottom:18px;font-size:0.875rem;">Im Warenbestand gibt es pro Zeile die Option, ein kleines Etikett oder den dazugehörigen A4-Warenbegleitschein erneut auszudrucken. Bei A4 zieht sich das System automatisch die Daten des letzten zugehörigen Wareneingangs.</p>
                     <h3 style="color:var(--accent);margin-bottom:8px;"><i class="fas fa-upload"></i> Warenausgang & Archiv</h3>
                     <p style="margin-bottom:18px;font-size:0.875rem;">Fällt ein Bestand nach der Entnahme auf 0, wird der Artikel nicht gelöscht, sondern ins Archiv verschoben. Im Warenbestand kannst du dir leere Bestände über die Checkbox anzeigen lassen und über "Bearbeiten" den Bestand bei Bedarf wieder anheben.</p>
-                    <h3 style="color:var(--accent);margin-bottom:8px;"><i class="fas fa-layer-group"></i> Lagerplätze</h3>
-                    <p style="font-size:0.875rem;">Im letzten Schritt des Wareneingangs wählst du aus, ob ein Artikel ins Hauptlager (Regal A, B, C und Fach 01-10) oder bei Mängeln ins Sperrlager (Quarantäne) kommt.</p>
+                    <h3 style="color:var(--accent);margin-bottom:8px;"><i class="fas fa-layer-group"></i> Lagerplätze & Mindestbestand</h3>
+                    <p style="font-size:0.875rem;">Wähle beim Eingang exakte Lagerplätze. Admins können im Warenbestand zudem einen Mindestbestand pro Artikel definieren. Wird dieser unterschritten, färbt sich die Zeile rot und das Dashboard warnt.</p>
                 </div>
             </section>
 
@@ -846,9 +851,7 @@ document.querySelectorAll(".nav-item").forEach(item => {
         document.querySelectorAll(".page-section").forEach(p=>p.classList.add("hidden"));
         document.getElementById(item.dataset.page).classList.remove("hidden");
         
-        // Close mobile sidebar if open
         if(window.innerWidth <= 768) toggleMobileMenu();
-
         if(item.dataset.page==='dashPage') renderDashboard();
         if(item.dataset.page==='outboundPage') setTimeout(()=>document.getElementById("outBarcode").focus(),80);
     });
@@ -966,9 +969,9 @@ document.getElementById("btnSubmit").addEventListener("click", () => {
     let item = state.inventory.find(i=>i.barcode===record.barcode);
     if(item){ 
         item.qty += record.qtyIst; 
-        item.location = record.location; // Immer auf neuesten Lagerplatz aktualisieren
+        item.location = record.location; 
     } else { 
-        state.inventory.push({ barcode:record.barcode, product:record.product, qty:record.qtyIst, location:record.location }); 
+        state.inventory.push({ barcode:record.barcode, product:record.product, qty:record.qtyIst, location:record.location, minStock:0 }); 
     }
     save();
     logAudit("WARENEINGANG",`${record.qtyIst}x ${record.product} (BC: ${record.barcode}) eingebucht in ${loc}.`);
@@ -1137,6 +1140,10 @@ function renderDashboard() {
     document.getElementById("statOutToday").textContent  = state.records.filter(r=>r.date===today&&r.type==='OUT').length;
     document.getElementById("statTotalItems").textContent= state.inventory.reduce((s,i)=>s+i.qty,0);
     document.getElementById("statIssues").textContent    = state.records.filter(r=>r.status==='Quarantäne').length;
+    
+    // Mindestbestand Kalkulation
+    const critCount = state.inventory.filter(i => i.qty <= (i.minStock || 0) && i.qty > 0).length;
+    document.getElementById("statCritical").textContent  = critCount;
 
     if(typeof Chart === 'undefined') return;
 
@@ -1191,19 +1198,23 @@ function renderInventory(filter=""){
     document.getElementById("inventoryBody").innerHTML = state.inventory
         .filter(i => showEmpty ? true : i.qty > 0)
         .filter(i => i.barcode.toLowerCase().includes(filter.toLowerCase()) || i.product.toLowerCase().includes(filter.toLowerCase()) || i.location.toLowerCase().includes(filter.toLowerCase()))
-        .map(i => `<tr>
-            <td><code style="font-family:'DM Mono',monospace;font-size:0.8rem;">${i.barcode}</code></td>
-            <td><b style="${i.qty === 0 ? 'color:var(--text-muted); text-decoration:line-through;' : ''}">${i.product}</b></td>
-            <td><span class="badge ${i.qty === 0 ? 'badge-gray' : 'badge-success'}">${i.qty} Stk</span></td>
-            <td><span class="badge ${i.location==='Sperrlager'?'badge-danger':'badge-info'}">${i.location}</span></td>
-            <td>
-                <div style="display:flex; gap:6px;">
-                    <button class="btn btn-sm btn-outline" onclick="openLabelModal('${i.barcode}')" title="Etikett drucken"><i class="fas fa-tag" style="color:var(--accent);"></i></button>
-                    <button class="btn btn-sm btn-outline" onclick="printA4FromInv('${i.barcode}')" title="A4 drucken"><i class="fas fa-file-alt"></i> A4</button>
-                </div>
-            </td>
-            <td class="${isAdmin?'':'hidden'}"><button class="btn btn-sm btn-outline" onclick="editInv('${i.barcode}')"><i class="fas fa-edit"></i></button></td>
-        </tr>`).join("");
+        .map(i => {
+            const isLow = i.qty <= (i.minStock || 0) && i.qty > 0;
+            return `<tr class="${isLow ? 'low-stock' : ''}">
+                <td><code style="font-family:'DM Mono',monospace;font-size:0.8rem;">${i.barcode}</code></td>
+                <td><b style="${i.qty === 0 ? 'color:var(--text-muted); text-decoration:line-through;' : ''}">${i.product}</b></td>
+                <td><span class="badge ${i.qty === 0 ? 'badge-gray' : (isLow ? 'badge-danger' : 'badge-success')}">${i.qty} Stk</span></td>
+                <td style="color:var(--text-muted); font-size:0.8rem;">${i.minStock || 0}</td>
+                <td><span class="badge ${i.location==='Sperrlager'?'badge-danger':'badge-info'}">${i.location}</span></td>
+                <td>
+                    <div style="display:flex; gap:6px;">
+                        <button class="btn btn-sm btn-outline" onclick="openLabelModal('${i.barcode}')" title="Etikett drucken"><i class="fas fa-tag" style="color:var(--accent);"></i></button>
+                        <button class="btn btn-sm btn-outline" onclick="printA4FromInv('${i.barcode}')" title="A4 drucken"><i class="fas fa-file-alt"></i> A4</button>
+                    </div>
+                </td>
+                <td class="${isAdmin?'':'hidden'}"><button class="btn btn-sm btn-outline" onclick="editInv('${i.barcode}')"><i class="fas fa-edit"></i></button></td>
+            </tr>`;
+        }).join("");
 }
 
 function renderHistory(filter=""){
@@ -1226,20 +1237,31 @@ document.getElementById("searchHistory").addEventListener("input",e=>renderHisto
 
 window.editInv=(barcode)=>{
     let item=state.inventory.find(i=>i.barcode===barcode);
+    
+    // 1. Bestand
     let n=prompt(`Neuer Bestand für ${item.product}:`,item.qty);
     if(n!==null&&!isNaN(n)){ 
-        logAudit("BESTANDSKORREKTUR",`BC ${barcode}: Menge ${item.qty}→${n}`); 
+        let oldQty = item.qty;
         item.qty=parseInt(n); 
         
+        // 2. Mindestbestand
+        let nMin = prompt(`Neuer Mindestbestand für ${item.product}:`, item.minStock || 0);
+        if(nMin!==null && !isNaN(nMin)) {
+            item.minStock = parseInt(nMin);
+        }
+
+        // 3. Lagerplatz
         let p=prompt("Lagerplatz anpassen (z.B. A-05):", item.location);
         if(p !== null && p.trim() !== "") {
-            logAudit("PLATZKORREKTUR",`BC ${barcode}: Platz ${item.location}→${p}`);
             item.location = p.trim();
         }
+        
+        logAudit("BESTANDSKORREKTUR",`BC ${barcode}: Menge ${oldQty}→${item.qty}, Min. ${item.minStock}, Platz ${item.location}`); 
         
         save(); renderInventory(); renderDashboard(); 
     }
 };
+
 window.editHist=(id)=>{
     let rec=state.records.find(r=>r.id===id);
     let n=prompt("Notiz korrigieren:",rec.note);
@@ -1261,8 +1283,12 @@ document.getElementById("saveUserBtn").addEventListener("click",()=>{
 window.delUser=(email)=>{ state.users=state.users.filter(u=>u.email!==email); logAudit("BENUTZER",`${email} gelöscht.`); save(); renderUsers(); };
 
 document.getElementById("exportCsvBtn").addEventListener("click",()=>{
-    let csv="Typ;Datum;Zeit;Mitarbeiter;Lieferant;Notiz;Produkt;Barcode;Menge;Status;Platz\n";
-    state.records.forEach(r=>csv+=`${r.type||'IN'};${formatDate(r.date)};${r.time};${r.user};${r.supplier};${r.note};${r.product};${r.barcode};${r.qtyIst};${r.status};${r.location}\n`);
+    let csv="Typ;Datum;Zeit;Mitarbeiter;Lieferant;Notiz;Produkt;Barcode;Menge;Status;Platz;MinBestand\n";
+    state.records.forEach(r=>{
+        let i = state.inventory.find(inv=>inv.barcode === r.barcode);
+        let m = i ? (i.minStock || 0) : 0;
+        csv+=`${r.type||'IN'};${formatDate(r.date)};${r.time};${r.user};${r.supplier};${r.note};${r.product};${r.barcode};${r.qtyIst};${r.status};${r.location};${m}\n`;
+    });
     const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
     a.download="buchungs_historie.csv"; a.click();
     logAudit("EXPORT","CSV exportiert.");
