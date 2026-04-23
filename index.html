@@ -71,7 +71,11 @@
 
         /* Mobile Header & Overlay */
         .mobile-header { display: none; background: var(--card-bg); padding: 14px 20px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); z-index: 900; }
-        .mobile-header-brand { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--text-main); }
+        .mobile-header-brand { font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; gap: 10px; color: var(--text-main); }
+        
+        /* Verbesserter Mobile Menu Button (Großer Touch-Bereich) */
+        #mobileMenuBtn { padding: 12px 18px; font-size: 1.4rem; border-radius: 10px; }
+        
         .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; backdrop-filter: blur(2px); opacity: 0; transition: opacity 0.3s; }
 
         /* Grid Utilities */
@@ -329,7 +333,7 @@
     <div class="main-wrapper">
         <div class="mobile-header">
             <div class="mobile-header-brand"><i class="fas fa-boxes-stacked" style="color:var(--accent);"></i> LogiTrack</div>
-            <button id="mobileMenuBtn" class="btn btn-outline btn-sm"><i class="fas fa-bars"></i></button>
+            <button id="mobileMenuBtn" class="btn btn-outline"><i class="fas fa-bars"></i></button>
         </div>
 
         <main class="main-content">
