@@ -7,9 +7,6 @@
     
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
 
     <style>
         :root {
@@ -28,7 +25,7 @@
         body.compact-ui th, body.compact-ui td { padding: 8px 12px; }
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); height: 100vh; overflow: hidden; transition: background .25s, color .25s; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-main); height: 100vh; overflow: hidden; transition: background .25s, color .25s; margin: 0; }
         .hidden { display: none !important; }
 
         /* Scrollbar */
@@ -59,7 +56,7 @@
         .badge-out     { background: rgba(124,58,237,.12); color: #7c3aed; }
 
         /* Layout */
-        #app { display: grid; grid-template-columns: var(--sidebar-width) 1fr; height: 100vh; }
+        #app { display: grid; grid-template-columns: var(--sidebar-width) 1fr; height: 100vh; width: 100vw; }
         .sidebar { background: var(--primary); color: #fff; padding: 20px 16px; display: flex; flex-direction: column; overflow-y: auto; border-right: 1px solid rgba(255,255,255,.06); }
         .sidebar-brand { font-size: 1.2rem; font-weight: 700; margin-bottom: 28px; padding: 0 8px; display: flex; align-items: center; gap: 10px; color: #fff; letter-spacing: -.3px; }
         .sidebar-brand span { color: var(--accent); }
@@ -143,8 +140,8 @@
         .input-scan-wrap input { padding-right: 90px; }
         .input-scan-trigger { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 5px 11px; font-size: 0.75rem; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px; }
 
-        /* Login */
-        #loginPage { height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0d1117 0%, #1a2035 50%, #0d1117 100%); }
+        /* Login - Positioniert absolut, um weiße Bildschirme zu verhindern */
+        #loginPage { position: absolute; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0d1117 0%, #1a2035 50%, #0d1117 100%); }
         .login-card { background: var(--card-bg); width: 100%; max-width: 380px; border-radius: 16px; padding: 36px; border: 1px solid var(--border); box-shadow: 0 25px 60px rgba(0,0,0,.5); }
         .login-logo { width: 48px; height: 48px; background: var(--accent); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
 
@@ -570,17 +567,32 @@
     </main>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+<script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js" defer></script>
+
 <script>
+// ─── SAFE STORAGE WRAPPER ────────────────────────────────────────────────────
+function safeLoad(key, fallback) {
+    try {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : fallback;
+    } catch (e) {
+        console.warn("Storage Fehler bei", key, "- setze auf Standardwert zurück.");
+        return fallback;
+    }
+}
+
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let state = {
     currentUser: null,
-    users:           JSON.parse(localStorage.getItem("lt9_users"))    || [{ email:"admin", password:"123", role:"admin" },{ email:"lager", password:"123", role:"employee" }],
-    records:         JSON.parse(localStorage.getItem("lt9_records"))  || [],
-    inventory:       JSON.parse(localStorage.getItem("lt9_inv"))      || [],
-    audit:           JSON.parse(localStorage.getItem("lt9_audit"))    || [],
-    masterSuppliers: JSON.parse(localStorage.getItem("lt9_ms"))       || ["Bechtle","Dell Technologies","Lenovo","Cyberport"],
-    masterProducts:  JSON.parse(localStorage.getItem("lt9_mp"))       || ["Notebooks","Monitore","Server","Switches","Peripherie"],
-    settings:        JSON.parse(localStorage.getItem("lt9_settings")) || { theme:'light', fontSize:'medium', color:'#2563eb', compact:false, workflow:'dash', sounds:true, dateFormat:'DE' }
+    users:           safeLoad("lt9_users", [{ email:"admin", password:"123", role:"admin" },{ email:"lager", password:"123", role:"employee" }]),
+    records:         safeLoad("lt9_records", []),
+    inventory:       safeLoad("lt9_inv", []),
+    audit:           safeLoad("lt9_audit", []),
+    masterSuppliers: safeLoad("lt9_ms", ["Bechtle","Dell Technologies","Lenovo","Cyberport"]),
+    masterProducts:  safeLoad("lt9_mp", ["Notebooks","Monitore","Server","Switches","Peripherie"]),
+    settings:        safeLoad("lt9_settings", { theme:'light', fontSize:'medium', color:'#2563eb', compact:false, workflow:'dash', sounds:true, dateFormat:'DE' })
 };
 
 const save = () => {
@@ -670,15 +682,16 @@ window.importBackup = (event) => {
 };
 
 // ─── CAMERA SCANNER ───────────────────────────────────────────────────────────
-let codeReader = null, scanTargetId = null, scanStream = null;
+let codeReader = null, scanTargetId = null;
 
 window.openScanner = function(targetInputId) {
     scanTargetId = targetInputId;
     document.getElementById('scannerModal').classList.remove('hidden');
     document.getElementById('scanner-result').textContent = 'Initialisiere Kamera...';
 
+    // Warten falls die Bibliothek noch lädt (defer)
     if(typeof ZXing === 'undefined') {
-        document.getElementById('scanner-result').textContent = 'Fehler: ZXing-Bibliothek nicht geladen.';
+        setTimeout(() => openScanner(targetInputId), 500);
         return;
     }
 
@@ -703,13 +716,11 @@ function startDecode(deviceId) {
             const val = result.getText();
             document.getElementById('scanner-result').textContent = '✅ Erkannt: ' + val;
             playSound('success');
-            // Fill target input
             const targetEl = document.getElementById(scanTargetId);
             if(targetEl) {
                 targetEl.value = val;
                 targetEl.dispatchEvent(new Event('input', {bubbles:true}));
             }
-            // Close after success
             setTimeout(() => closeScanner(), 800);
         }
     });
@@ -898,7 +909,6 @@ function prepareLabelPrint(barcode, product, qty, date, containerId) {
     } catch(e){}
 }
 
-// Open label modal for a specific inventory item
 window.openLabelModal = function(barcode) {
     const item = state.inventory.find(i=>i.barcode===barcode);
     if(!item) return;
@@ -911,7 +921,6 @@ window.openLabelModal = function(barcode) {
     try {
         new QRCode(qrDiv, { text:item.barcode, width:64, height:64, colorDark:"#000", colorLight:"#fff", correctLevel:QRCode.CorrectLevel.L });
     } catch(e){}
-    // Store for print button
     document.getElementById("btnPrintLabelItem").onclick = () => {
         document.getElementById("labelModal").classList.add("hidden");
         prepareLabelPrint(item.barcode, item.product, item.qty, formatDate(new Date().toISOString().split('T')[0]), 'label-qr-print');
@@ -987,6 +996,8 @@ function renderDashboard() {
     document.getElementById("statTotalItems").textContent= state.inventory.reduce((s,i)=>s+i.qty,0);
     document.getElementById("statIssues").textContent    = state.records.filter(r=>r.status==='Quarantäne').length;
 
+    if(typeof Chart === 'undefined') return; // Überspringen falls Chart.js verzögert lädt
+
     if(tChart) tChart.destroy();
     if(gChart) gChart.destroy();
     Chart.defaults.color = state.settings.theme==='dark' ? '#8b949e':'#64748b';
@@ -1013,7 +1024,6 @@ function renderDashboard() {
     });
 }
 
-// Master Data
 function initMasterData(){
     document.querySelectorAll(".master-supplier-list").forEach(el=>el.innerHTML=state.masterSuppliers.map(s=>`<option>${s}</option>`).join(""));
     document.querySelectorAll(".master-product-list").forEach(el=>el.innerHTML=state.masterProducts.map(p=>`<option>${p}</option>`).join(""));
@@ -1030,7 +1040,6 @@ window.addMaster=(type)=>{
 };
 window.delMaster=(type,i)=>{ if(type==='s') state.masterSuppliers.splice(i,1); else state.masterProducts.splice(i,1); logAudit("STAMMDATEN","Datensatz gelöscht."); save(); initMasterData(); };
 
-// Inventory
 function renderInventory(filter=""){
     const isAdmin = state.currentUser.role==='admin';
     document.getElementById("inventoryBody").innerHTML = state.inventory
@@ -1045,7 +1054,6 @@ function renderInventory(filter=""){
         </tr>`).join("");
 }
 
-// History
 function renderHistory(filter=""){
     const isAdmin = state.currentUser.role==='admin';
     document.getElementById("historyBody").innerHTML = state.records
@@ -1075,7 +1083,6 @@ window.editHist=(id)=>{
     if(n!==null){ logAudit("HISTORIE KORRIGIERT",`ID ${id}: ${n}`); rec.note=n; save(); renderHistory(); }
 };
 
-// Users
 function renderUsers(){
     document.getElementById("userTableBody").innerHTML=state.users.map(u=>
         `<tr><td><b>${u.email}</b></td><td><span class="badge ${u.role==='admin'?'badge-danger':'badge-success'}">${u.role}</span></td><td>
@@ -1090,7 +1097,6 @@ document.getElementById("saveUserBtn").addEventListener("click",()=>{
 });
 window.delUser=(email)=>{ state.users=state.users.filter(u=>u.email!==email); logAudit("BENUTZER",`${email} gelöscht.`); save(); renderUsers(); };
 
-// CSV Export
 document.getElementById("exportCsvBtn").addEventListener("click",()=>{
     let csv="Typ;Datum;Zeit;Mitarbeiter;Lieferant;Notiz;Produkt;Barcode;Menge;Status\n";
     state.records.forEach(r=>csv+=`${r.type||'IN'};${formatDate(r.date)};${r.time};${r.user};${r.supplier};${r.note};${r.product};${r.barcode};${r.qtyIst};${r.status}\n`);
