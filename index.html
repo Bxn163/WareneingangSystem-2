@@ -647,17 +647,16 @@ const firebaseConfig = {
     appId: "1:667415141949:web:4e8339d1f35190dcae9454"
 };
 
-// Initialisiere die Firebase Cloud
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// ─── SAFE STORAGE (Nur noch für lokale Einstellungen wie Dark-Mode) ─────────
+// ─── SAFE STORAGE ────────────────────────────────────────────────────────────
 function safeLoad(key, fallback) {
     try { const item = localStorage.getItem(key); return item ? JSON.parse(item) : fallback; }
     catch (e) { return fallback; }
 }
 
-// ─── LOKALER STATE (Wird von der Cloud überschrieben) ────────────────────────
+// ─── LOKALER STATE (inkl. neuer "activeSessions" für den Online-Status) ──────
 let state = {
     currentUser: null,
     users: [{ email:"admin", password:"123", role:"admin" },{ email:"lager", password:"123", role:"employee" }],
@@ -666,6 +665,7 @@ let state = {
     audit: [],
     masterSuppliers: ["Bechtle","Dell Technologies","Lenovo","Cyberport"],
     masterProducts: ["Notebooks","Monitore","Server","Switches","Peripherie"],
+    activeSessions: {}, // NEU: Speichert den letzten Zeitstempel pro Nutzer
     settings: safeLoad("lt9_settings", { theme:'light', fontSize:'medium', color:'#2563eb', compact:false, workflow:'dash', sounds:true, dateFormat:'DE' })
 };
 
@@ -679,36 +679,41 @@ db.collection("logitrack").doc("globalState").onSnapshot((doc) => {
         state.audit = data.audit || [];
         state.masterSuppliers = data.masterSuppliers || state.masterSuppliers;
         state.masterProducts = data.masterProducts || state.masterProducts;
+        state.activeSessions = data.activeSessions || {}; // NEU: Online-Status laden
     } else {
-        // Falls die Datenbank komplett leer ist, schreibe die Start-Werte hinein
         save();
     }
     
-    // Wenn jemand eingeloggt ist, aktualisiere den Bildschirm sofort
     if(state.currentUser) {
         renderAll();
         initMasterData();
     }
 });
 
-// ─── ZENTRALE SPEICHER-FUNKTION (Pusht in die Cloud) ─────────────────────────
+// ─── ZENTRALE SPEICHER-FUNKTION ──────────────────────────────────────────────
 const save = () => {
-    // Schiebt alles hoch ins Internet
     db.collection("logitrack").doc("globalState").set({
         users: state.users,
         records: state.records,
         inventory: state.inventory,
         audit: state.audit,
         masterSuppliers: state.masterSuppliers,
-        masterProducts: state.masterProducts
+        masterProducts: state.masterProducts,
+        activeSessions: state.activeSessions // NEU: Online-Status hochladen
     }).catch(err => console.error("Cloud-Speicher Fehler:", err));
     
-    // Speichert das reine Design lokal
     localStorage.setItem("lt9_settings", JSON.stringify(state.settings));
 };
 
+// ─── NEU: ONLINE-STATUS HEARTBEAT ────────────────────────────────────────────
+function pingPresence() {
+    if(state.currentUser) {
+        state.activeSessions[state.currentUser.email] = Date.now();
+        save();
+    }
+}
 
-// ─── INIT SLOTS (Fächer 01-10) ───────────────────────────────────────────────
+// ─── UI UND HILFSFUNKTIONEN ──────────────────────────────────────────────────
 const slotSelect = document.getElementById('w-slot');
 for(let i = 1; i <= 10; i++) {
     let opt = document.createElement('option');
@@ -717,7 +722,6 @@ for(let i = 1; i <= 10; i++) {
     slotSelect.appendChild(opt);
 }
 
-// ─── MOBILE MENU TOGGLE ──────────────────────────────────────────────────────
 const sidebar = document.getElementById('sidebar');
 const sidebarOverlay = document.getElementById('sidebarOverlay');
 const mobileMenuBtn = document.getElementById('mobileMenuBtn');
@@ -729,7 +733,6 @@ function toggleMobileMenu() {
 mobileMenuBtn.addEventListener('click', toggleMobileMenu);
 sidebarOverlay.addEventListener('click', toggleMobileMenu);
 
-// ─── AUDIT ───────────────────────────────────────────────────────────────────
 function logAudit(action, details) {
     if(!state.currentUser) return;
     const now = new Date();
@@ -743,7 +746,6 @@ function renderAudit() {
     ).join("");
 }
 
-// ─── SETTINGS ────────────────────────────────────────────────────────────────
 function applySettings() {
     document.body.classList.toggle('dark-mode', state.settings.theme==='dark');
     document.body.classList.toggle('compact-ui', state.settings.compact);
@@ -795,7 +797,6 @@ function formatDate(d) {
     const p = d.split('-'); return p.length===3 ? `${p[2]}.${p[1]}.${p[0]}` : d;
 }
 
-// ─── BACKUP ───────────────────────────────────────────────────────────────────
 window.exportBackup = () => {
     logAudit("BACKUP","Backup exportiert.");
     const a = document.createElement('a');
@@ -810,7 +811,6 @@ window.importBackup = (event) => {
     reader.readAsText(file);
 };
 
-// ─── CAMERA SCANNER ───────────────────────────────────────────────────────────
 let codeReader = null, scanTargetId = null;
 
 window.openScanner = function(targetInputId) {
@@ -862,7 +862,7 @@ function closeScanner() {
 }
 document.getElementById('btnCloseScanner').addEventListener('click', closeScanner);
 
-// ─── LOGIN ────────────────────────────────────────────────────────────────────
+// ─── LOGIN & LOGOUT ──────────────────────────────────────────────────────────
 document.getElementById("loginBtn").addEventListener("click", doLogin);
 document.getElementById("loginPassword").addEventListener("keydown", e => { if(e.key==='Enter') doLogin(); });
 
@@ -876,12 +876,26 @@ function doLogin() {
         if(user.role!=='admin') document.querySelectorAll(".admin-only").forEach(el=>el.classList.add("hidden"));
         applySettings(); resetWizardTime(); initMasterData(); renderAll();
         logAudit("LOGIN","Benutzer hat sich angemeldet.");
+        
+        // NEU: Heartbeat aktivieren (Alle 45 Sekunden ein Ping senden)
+        pingPresence();
+        setInterval(pingPresence, 45000); 
+
     } else {
         document.getElementById("loginError").textContent = "Falsche Zugangsdaten!";
         playSound('error');
     }
 }
-document.getElementById("logoutBtn").addEventListener("click", ()=>{ logAudit("LOGOUT","Abgemeldet."); location.reload(); });
+
+document.getElementById("logoutBtn").addEventListener("click", ()=>{ 
+    logAudit("LOGOUT","Abgemeldet."); 
+    // NEU: Status direkt auf offline setzen beim Logout
+    if(state.currentUser) {
+        delete state.activeSessions[state.currentUser.email];
+        save();
+    }
+    location.reload(); 
+});
 
 function resetWizardTime() {
     document.getElementById("w-date").valueAsDate = new Date();
@@ -899,10 +913,10 @@ document.querySelectorAll(".nav-item").forEach(item => {
         if(window.innerWidth <= 768) toggleMobileMenu();
         if(item.dataset.page==='dashPage') renderDashboard();
         if(item.dataset.page==='outboundPage') setTimeout(()=>document.getElementById("outBarcode").focus(),80);
+        if(item.dataset.page==='userPage') renderUsers(); // Force refresh um Online-Status zu aktualisieren
     });
 });
 
-// ─── WIZARD (INBOUND) ─────────────────────────────────────────────────────────
 let step = 1;
 window.setRadio = (el, id, val) => {
     el.parentElement.querySelectorAll(".radio-btn").forEach(b=>b.classList.remove("active"));
@@ -1053,7 +1067,6 @@ document.getElementById("btnSubmit").addEventListener("click", () => {
     renderAll();
 });
 
-// ─── PRINT LABEL HELPERS ──────────────────────────────────────────────────────
 function prepareLabelPrint(barcode, product, qty, date, containerId) {
     document.getElementById("l-product").textContent=product.substring(0,22);
     document.getElementById("l-barcode").textContent=barcode;
@@ -1087,7 +1100,6 @@ window.openLabelModal = function(barcode) {
     document.getElementById("labelModal").classList.remove("hidden");
 };
 
-// ─── PRINT A4 FROM INVENTORY ──────────────────────────────────────────────────
 window.printA4FromInv = function(barcode) {
     const item = state.inventory.find(i => i.barcode === barcode);
     if(!item) return;
@@ -1111,7 +1123,6 @@ window.printA4FromInv = function(barcode) {
     setTimeout(() => { document.body.className = ""; applySettings(); }, 800);
 };
 
-// ─── OUTBOUND ─────────────────────────────────────────────────────────────────
 let currentOutItem = null;
 document.getElementById("outBarcode").addEventListener("input", e => {
     const val = e.target.value.trim();
@@ -1156,7 +1167,6 @@ document.getElementById("btnSubmitOutbound").addEventListener("click", () => {
     renderAll();
 });
 
-// ─── PRINT MODAL ROUTING ──────────────────────────────────────────────────────
 function handleRoute(){ if(state.settings.workflow==='dash') document.querySelector('[data-page="dashPage"]').click(); else document.querySelector('[data-page="receivePage"]').click(); }
 document.getElementById("btnSkipPrint").addEventListener("click",()=>{ document.getElementById("printModal").classList.add("hidden"); handleRoute(); });
 document.getElementById("btnDoPrintA4").addEventListener("click",()=>{
@@ -1168,7 +1178,6 @@ document.getElementById("btnDoPrintLabel").addEventListener("click",()=>{
     setTimeout(()=>{ document.body.className=""; handleRoute(); applySettings(); },800);
 });
 
-// ─── RENDER ───────────────────────────────────────────────────────────────────
 function renderAll(){ renderDashboard(); renderInventory(); renderHistory(); renderUsers(); renderAudit(); }
 
 let tChart, gChart;
@@ -1301,12 +1310,29 @@ window.editHist=(id)=>{
     if(n!==null){ logAudit("HISTORIE KORRIGIERT",`ID ${id}: ${n}`); rec.note=n; save(); renderHistory(); }
 };
 
+// ─── NEU: BENUTZER MIT ONLINE-STATUS RENDERN ──────────────────────────────────
 function renderUsers(){
-    document.getElementById("userTableBody").innerHTML=state.users.map(u=>
-        `<tr><td><b>${u.email}</b></td><td><span class="badge ${u.role==='admin'?'badge-danger':'badge-success'}">${u.role}</span></td><td>
-        <button class="btn btn-sm btn-danger" onclick="delUser('${u.email}')" ${u.email===state.currentUser.email?'disabled':''}>
-        <i class="fas fa-trash"></i></button></td></tr>`).join("");
+    const now = Date.now();
+    document.getElementById("userTableBody").innerHTML=state.users.map(u=>{
+        // Prüfen, wann der Nutzer zuletzt aktiv war (Threshold: 90 Sekunden)
+        const lastActive = state.activeSessions[u.email] || 0;
+        const isOnline = (now - lastActive) < 90000; 
+        
+        // Anzeige-Label generieren
+        const statusHtml = isOnline 
+            ? `<div style="color:var(--success); font-size:0.75rem; margin-top:4px;"><i class="fas fa-circle" style="font-size:0.6rem; vertical-align:middle;"></i> Online</div>`
+            : `<div style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;"><i class="far fa-circle" style="font-size:0.6rem; vertical-align:middle;"></i> Offline</div>`;
+
+        return `<tr>
+            <td><b>${u.email}</b>${statusHtml}</td>
+            <td><span class="badge ${u.role==='admin'?'badge-danger':'badge-success'}">${u.role}</span></td>
+            <td>
+            <button class="btn btn-sm btn-danger" onclick="delUser('${u.email}')" ${u.email===state.currentUser.email?'disabled':''}>
+            <i class="fas fa-trash"></i></button></td>
+        </tr>`;
+    }).join("");
 }
+
 document.getElementById("saveUserBtn").addEventListener("click",()=>{
     const e=document.getElementById("newUserEmail").value, p=document.getElementById("newUserPassword").value;
     if(!e||!p) return alert("Felder ausfüllen");
