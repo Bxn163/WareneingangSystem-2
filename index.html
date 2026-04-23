@@ -296,11 +296,10 @@
         <div class="login-logo"><i class="fas fa-boxes-stacked" style="color:#fff;font-size:1.3rem;"></i></div>
         <h2 style="font-size:1.4rem;font-weight:700;letter-spacing:-.5px;margin-bottom:4px;">LogiTrack V9</h2>
         <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:24px;">Enterprise Lagerverwaltung</p>
-        <div class="input-group"><label>Benutzername</label><input type="text" id="loginEmail" placeholder="admin oder lager" autocomplete="username"></div>
+        <div class="input-group"><label>Benutzername</label><input type="text" id="loginEmail" placeholder="Benutzername" autocomplete="username"></div>
         <div class="input-group"><label>Passwort</label><input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"></div>
         <button class="btn btn-primary" id="loginBtn" style="width:100%;margin-top:6px;padding:12px;font-size:0.95rem;">Anmelden</button>
         <p id="loginError" style="color:var(--danger);margin-top:12px;font-size:0.85rem;font-weight:600;"></p>
-        <p style="margin-top:20px;font-size:0.75rem;color:var(--text-muted);text-align:center;">Demo: admin / 123 &nbsp;|&nbsp; lager / 123</p>
     </div>
 </div>
 
@@ -1235,31 +1234,32 @@ function renderHistory(filter=""){
 document.getElementById("searchInventory").addEventListener("input",e=>renderInventory(e.target.value));
 document.getElementById("searchHistory").addEventListener("input",e=>renderHistory(e.target.value));
 
-window.editInv=(barcode)=>{
-    let item=state.inventory.find(i=>i.barcode===barcode);
+window.editInv = (barcode) => {
+    let item = state.inventory.find(i => i.barcode === barcode);
     
     // 1. Bestand
-    let n=prompt(`Neuer Bestand für ${item.product}:`,item.qty);
-    if(n!==null&&!isNaN(n)){ 
-        let oldQty = item.qty;
-        item.qty=parseInt(n); 
-        
-        // 2. Mindestbestand
-        let nMin = prompt(`Neuer Mindestbestand für ${item.product}:`, item.minStock || 0);
-        if(nMin!==null && !isNaN(nMin)) {
-            item.minStock = parseInt(nMin);
-        }
+    let n = prompt(`Schritt 1/3 - Neuer Bestand für ${item.product}:`, item.qty);
+    if(n === null || isNaN(n)) return; 
+    
+    // 2. Mindestbestand
+    let nMin = prompt(`Schritt 2/3 - Mindestbestand für ${item.product}:`, item.minStock || 0);
+    if(nMin === null || isNaN(nMin)) return; 
 
-        // 3. Lagerplatz
-        let p=prompt("Lagerplatz anpassen (z.B. A-05):", item.location);
-        if(p !== null && p.trim() !== "") {
-            item.location = p.trim();
-        }
-        
-        logAudit("BESTANDSKORREKTUR",`BC ${barcode}: Menge ${oldQty}→${item.qty}, Min. ${item.minStock}, Platz ${item.location}`); 
-        
-        save(); renderInventory(); renderDashboard(); 
-    }
+    // 3. Lagerplatz
+    let p = prompt(`Schritt 3/3 - Lagerplatz anpassen (z.B. A-05):`, item.location);
+    if(p === null) return; 
+
+    // Werte speichern
+    let oldQty = item.qty;
+    item.qty = parseInt(n);
+    item.minStock = parseInt(nMin);
+    item.location = p.trim() || item.location;
+    
+    logAudit("BESTANDSKORREKTUR", `BC ${barcode}: Menge ${oldQty}→${item.qty}, Min. ${item.minStock}, Platz ${item.location}`); 
+    
+    save(); 
+    renderInventory(); 
+    renderDashboard(); 
 };
 
 window.editHist=(id)=>{
