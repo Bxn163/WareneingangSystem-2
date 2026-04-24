@@ -166,7 +166,7 @@
         #qa-details-box { background: rgba(220,38,38,0.04); border: 1px solid rgba(220,38,38,0.2); padding: 16px; border-radius: 8px; margin-top: 16px; }
         #qa-details-box label { color: var(--danger); }
 
-        /* Rollen-System Sichtbarkeiten (KORRIGIERT: Mitarbeiter sehen keine Admin-Tools mehr) */
+        /* Rollen-System Sichtbarkeiten */
         body.role-employee .manager-up,
         body.role-employee .admin-up { display: none !important; }
 
@@ -1628,7 +1628,11 @@ window.sendComplaint = (recordId) => {
     const subject = `Reklamation zu Lieferschein ${r.note} - Artikel: ${r.product}`;
     const body = `Sehr geehrte Damen und Herren,%0A%0Ahiermit reklamieren wir die Lieferung vom ${formatDate(r.date)} (Ihre Lieferschein-Nr: ${r.note}).%0A%0AArtikel: ${r.product} (Barcode/SN: ${r.barcode})%0A%0A${qaText}%0A%0ABitte setzen Sie sich bezüglich einer Ersatzlieferung oder Gutschrift zeitnah mit uns in Verbindung.%0A%0AMit freundlichen Grüßen%0A%0A${state.currentUser.email}%0A(Logistikabteilung)`;
     
-    window.location.href = `mailto:${targetEmail}?subject=${subject}&body=${body}`;
+    const mailLink = document.createElement('a');
+    mailLink.href = `mailto:${targetEmail}?subject=${subject}&body=${body}`;
+    mailLink.target = '_blank';
+    mailLink.click();
+    
     logAudit("REKLAMATION", `E-Mail-Prozess für ${r.product} an ${targetEmail} gestartet.`);
 };
 
@@ -1646,7 +1650,11 @@ window.reorderItem = (barcode) => {
         const subject = `Nachbestellung erforderlich: ${inv.product}`;
         const body = `Hallo,%0A%0Abitte folgenden Artikel aus dem Warenbestand nachbestellen:%0A%0AArtikel: ${inv.product}%0AIT-Lieferant: ${inv.supplier || 'Unbekannt'}%0ABarcode/SN: ${inv.barcode}%0AAktueller Bestand: ${inv.qty} Stk.%0A%0ABenötigte Menge: _____ Stk.%0A%0AViele Grüße%0A${state.currentUser.email}`;
         
-        window.location.href = `mailto:${targetEmail}?subject=${subject}&body=${body}`;
+        const mailLink = document.createElement('a');
+        mailLink.href = `mailto:${targetEmail}?subject=${subject}&body=${body}`;
+        mailLink.target = '_blank';
+        mailLink.click();
+        
         logAudit("NACHBESTELLUNG", `Bestell-Mail für ${inv.product} vorbereitet.`);
     }
 };
