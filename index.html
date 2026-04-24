@@ -166,11 +166,14 @@
         #qa-details-box { background: rgba(220,38,38,0.04); border: 1px solid rgba(220,38,38,0.2); padding: 16px; border-radius: 8px; margin-top: 16px; }
         #qa-details-box label { color: var(--danger); }
 
-        /* Rollen-System Sichtbarkeiten */
-        body.role-employee .manager-up { display: none !important; }
+        /* Rollen-System Sichtbarkeiten (KORRIGIERT: Mitarbeiter sehen keine Admin-Tools mehr) */
+        body.role-employee .manager-up,
+        body.role-employee .admin-up { display: none !important; }
+
         body.role-manager .admin-up { display: none !important; }
-        body.role-praktikant .manager-up { display: none !important; }
-        body.role-praktikant .admin-up { display: none !important; }
+
+        body.role-praktikant .manager-up,
+        body.role-praktikant .admin-up,
         body.role-praktikant .action-col { display: none !important; }
 
         /* Print Area */
