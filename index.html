@@ -706,7 +706,24 @@
             <button id="aiChatClose" style="background:transparent; border:none; color:#fff; cursor:pointer; font-size:1.2rem;"><i class="fas fa-times"></i></button>
         </div>
         <div id="aiChatHistory" style="height:320px; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; font-size:0.875rem; background:var(--bg);">
-            <div style="align-self:flex-start; background:var(--primary-light); color:var(--text-main); padding:10px 14px; border-radius:12px 12px 12px 0; border:1px solid var(--border);">Hallo! Ich bin dein intelligenter Lager-Assistent. Frag mich etwas zu deinem aktuellen Warenbestand!</div>
+            
+            <div style="align-self:flex-start; background:var(--card-bg); color:var(--text-main); padding:12px 16px; border-radius:12px 12px 12px 0; border:1px solid var(--border); box-shadow: var(--shadow);">
+                <b>👋 Hallo! Ich bin der LogiTrack KI-Assistent.</b><br><br>
+                Du kannst mich alles über unser Lager fragen. Klicke einfach auf eine dieser Fragen, um sie direkt zu stellen:<br><br>
+                
+                <span style="color:var(--accent); cursor:pointer; font-weight:500; display:block; padding:4px 0;" onclick="document.getElementById('aiChatInput').value='Zeig mir den Gesamtbestand'; document.getElementById('aiChatSend').click();">👉 Zeig mir den Gesamtbestand</span>
+                
+                <span style="color:var(--accent); cursor:pointer; font-weight:500; display:block; padding:4px 0;" onclick="document.getElementById('aiChatInput').value='Gibt es kritische Bestände?'; document.getElementById('aiChatSend').click();">👉 Gibt es kritische Bestände?</span>
+                
+                <span style="color:var(--accent); cursor:pointer; font-weight:500; display:block; padding:4px 0;" onclick="document.getElementById('aiChatInput').value='Welche Artikel liegen im Sperrlager?'; document.getElementById('aiChatSend').click();">👉 Welche Artikel liegen im Sperrlager?</span>
+                
+                <span style="color:var(--accent); cursor:pointer; font-weight:500; display:block; padding:4px 0;" onclick="document.getElementById('aiChatInput').value='Zeig mir alle Lieferanten'; document.getElementById('aiChatSend').click();">👉 Zeig mir alle Lieferanten</span>
+                
+                <span style="color:var(--accent); cursor:pointer; font-weight:500; display:block; padding:4px 0;" onclick="document.getElementById('aiChatInput').value='Was waren die letzten Buchungen?'; document.getElementById('aiChatSend').click();">👉 Was waren die letzten Buchungen?</span>
+                
+                <br>Oder tippe unten den Namen eines speziellen <b>Lieferanten</b> oder <b>Artikels</b> ein!
+            </div>
+            
         </div>
         <div style="padding:12px; background:var(--card-bg); border-top:1px solid var(--border); display:flex; gap:8px;">
             <input type="text" id="aiChatInput" placeholder="Frag mich etwas zum Lager..." style="flex:1; padding:10px 14px; border-radius:20px; border:1px solid var(--border); font-size:0.875rem; background:var(--bg); color:var(--text-main);">
@@ -1693,60 +1710,123 @@ document.getElementById("aiChatInput").addEventListener("keypress", (e) => { if(
 function sendAiMessage() {
     const input = document.getElementById("aiChatInput");
     const msg = input.value.trim().toLowerCase();
-
+    
     if(!msg) return;
-
+    
     input.value = "";
     appendChatMessage(msg, 'user');
-    const typingId = appendChatMessage("Denke nach...", 'ai');
+    const typingId = appendChatMessage("Analysiere Datenbank...", 'ai'); 
 
-    // Künstliche Verzögerung, damit es sich wie eine echte KI anfühlt (1,5 Sekunden)
     setTimeout(() => {
         document.getElementById(typingId).remove();
         let aiText = "";
 
-        // Logik 1: Begrüßung
-        if (msg.includes("hallo") || msg.includes("hi ") || msg.includes("moin")) {
-            aiText = "Hallo! Ich bin dein LogiTrack-Assistent. Frag mich gerne etwas zu unserem aktuellen Warenbestand!";
+        // Hilfs-Array für die intelligente Suche (Wörter über 2 Buchstaben)
+        const searchWords = msg.split(" ").filter(w => w.length > 2);
+
+        // 1. Begrüßung
+        if (msg === "hallo" || msg === "hi" || msg === "moin" || msg === "hey") {
+            aiText = "Hallo! Ich bin dein LogiTrack-Assistent. Du kannst mich nach dem Gesamtbestand, detaillierten Artikel-Infos, Lieferanten-Daten, kritischen Beständen oder der Buchungshistorie fragen!";
         }
-        // Logik 2: Gezielte Nachfrage nach Notebooks / Laptops
-        else if (msg.includes("notebook") || msg.includes("laptop")) {
-            const items = state.inventory.filter(i => i.product.toLowerCase().includes("notebook") && i.qty > 0);
-            if(items.length > 0) {
-                const total = items.reduce((sum, i) => sum + i.qty, 0);
-                const locations = [...new Set(items.map(i => i.location))].join(" und ");
-                aiText = `Wir haben aktuell **${total} Notebooks** auf Lager. Du findest sie an folgenden Plätzen: ${locations}.`;
+        // 2. Spezifischer Lieferant & dessen Artikel (SEHR DETAILLIERT)
+        else if (state.masterSuppliers.some(s => msg.includes(s.name.toLowerCase()))) {
+            const supplier = state.masterSuppliers.find(s => msg.includes(s.name.toLowerCase()));
+            const supItems = state.inventory.filter(i => i.supplier === supplier.name && i.qty > 0);
+            
+            let details = `**Lieferanten-Akte: ${supplier.name}**<br>`;
+            details += `👤 Ansprechpartner: ${supplier.contact || '*Nicht hinterlegt*'}<br>`;
+            details += `✉️ E-Mail: ${supplier.email || '*Nicht hinterlegt*'}<br>`;
+            details += `📞 Tel: ${supplier.phone || '*Nicht hinterlegt*'}<br>`;
+            details += `🌐 Webshop: ${supplier.orderUrl ? `<a href="${supplier.orderUrl}" target="_blank" style="color:var(--accent)">Link öffnen</a>` : '*Nicht hinterlegt*'}<br><br>`;
+            
+            if (supItems.length > 0) {
+                details += `**📦 Unser Lagerbestand von diesem Lieferanten:**<br>• ` + supItems.map(i => `${i.qty}x ${i.product} (Lagerort: ${i.location})`).join("<br>• ");
             } else {
-                aiText = "Aktuell haben wir leider **keine Notebooks** mehr auf Lager.";
+                details += `*Aktuell haben wir keinen aktiven Bestand von diesem Lieferanten im Lager.*`;
+            }
+            aiText = details;
+        }
+        // 3. Alle Lieferanten in der Übersicht
+        else if (msg.includes("lieferant") || msg.includes("kontakt") || msg.includes("partner")) {
+            if (state.masterSuppliers && state.masterSuppliers.length > 0) {
+                let list = state.masterSuppliers.map(s => `**${s.name}** (ASP: ${s.contact || '-'})`).join("<br>• ");
+                aiText = "Wir haben folgende IT-Lieferanten im System:<br><br>• " + list + "<br><br>*Tipp: Nenne den Namen eines Lieferanten (z.B. 'Zeig mir die Daten von Dell'), um alle Details und zugehörige Artikel zu sehen!*";
+            } else {
+                aiText = "Aktuell sind leider keine Lieferanten in den Stammdaten hinterlegt.";
             }
         }
-        // Logik 3: Gezielte Nachfrage nach Monitoren
-        else if (msg.includes("monitor") || msg.includes("bildschirm")) {
-            const items = state.inventory.filter(i => i.product.toLowerCase().includes("monitor") && i.qty > 0);
-            if(items.length > 0) {
-                const total = items.reduce((sum, i) => sum + i.qty, 0);
-                aiText = `Es sind noch **${total} Monitore** sofort verfügbar im System gebucht.`;
+        // 4. Historie / Letzte Buchungen
+        else if (msg.includes("historie") || msg.includes("letzte") || msg.includes("buchung") || msg.includes("heute")) {
+            if(state.records.length > 0) {
+                const lastRecords = state.records.slice(0, 4); // Zeigt die letzten 4 Buchungen
+                aiText = "**Die letzten System-Buchungen:**<br><br>" + lastRecords.map(r => {
+                    const icon = r.type === 'IN' ? '📥 Eingang' : '📤 Ausgang';
+                    return `• ${icon}: **${r.qtyIst}x ${r.product}** am ${r.date.split('-').reverse().join('.')} (Mitarbeiter: ${r.user})`;
+                }).join("<br><br>");
             } else {
-                aiText = "Wir haben momentan **keine Monitore** auf Lager.";
+                aiText = "Es gibt noch keine Buchungshistorie in der Datenbank.";
             }
         }
-        // Logik 4: Allgemeine Bestandsabfrage (z.B. "Was haben wir da?", "Bestand")
-        else if (msg.includes("bestand") || msg.includes("wieviel") || msg.includes("lager") || msg.includes("was")) {
+        // 5. Kritischer Bestand & Leerstand
+        else if (msg.includes("kritisch") || msg.includes("wenig") || msg.includes("nachbestellen") || msg.includes("leer") || msg.includes("fehlt") || msg.includes("mindestbestand")) {
+            const crit = state.inventory.filter(i => i.qty <= (i.minStock || 0) && i.qty > 0);
+            const empty = state.inventory.filter(i => i.qty === 0);
+            
+            let textParts = [];
+            if(crit.length > 0) {
+                textParts.push("**⚠️ Kritischer Bestand (Unter Minimum):**<br>• " + crit.map(i => `${i.product}: **${i.qty} Stk** (Min: ${i.minStock || 0})`).join("<br>• "));
+            }
+            if(empty.length > 0) {
+                textParts.push("**❌ Komplett leer (0 Bestand):**<br>• " + empty.map(i => `${i.product}`).join("<br>• "));
+            }
+            
+            if(textParts.length > 0) {
+                aiText = "Folgende Artikel erfordern Aufmerksamkeit:<br><br>" + textParts.join("<br><br>") + "<br><br>*Nutze den Button 'Nachbestellen' in der Inventar-Tabelle, um direkt beim Lieferanten zu ordern.*";
+            } else {
+                aiText = "Super! Alle Artikel sind im grünen Bereich. Kein Mindestbestand unterschritten.";
+            }
+        }
+        // 6. Sperrlager / Defekte
+        else if (msg.includes("sperrlager") || msg.includes("quarantäne") || msg.includes("defekt") || msg.includes("mangel") || msg.includes("kaputt") || msg.includes("reklamation")) {
+            const issues = state.inventory.filter(i => i.location === "Sperrlager");
+            if (issues.length > 0) {
+                aiText = `**⚠️ Sperrlager-Bericht:**<br><br>• ` + issues.map(i => `**${i.qty}x ${i.product}**<br>  Barcode: ${i.barcode}<br>  Lieferant: ${i.supplier || 'Unbekannt'}`).join("<br><br>• ") + "<br><br>Du kannst über die Historie direkt eine Reklamations-E-Mail generieren.";
+            } else {
+                aiText = "Gute Nachrichten: Das Sperrlager ist komplett leer. Keine defekten Artikel verzeichnet!";
+            }
+        }
+        // 7. Detaillierte Artikelsuche (Produktname oder Barcode)
+        else if (searchWords.some(w => state.inventory.some(i => i.product.toLowerCase().includes(w) || i.barcode.toLowerCase().includes(w)))) {
+            let foundItems = state.inventory.filter(i => 
+                searchWords.some(w => i.product.toLowerCase().includes(w) || i.barcode.toLowerCase().includes(w))
+            );
+
+            if (foundItems.length > 0) {
+                let list = foundItems.map(i => {
+                    let status = i.qty > 0 ? `<span style="color:#059669">${i.qty} Stück verfügbar</span>` : `<span style="color:#dc2626">Ausverkauft (0 Stück)</span>`;
+                    return `**${i.product}**<br>  📦 Status: ${status}<br>  📍 Ort: ${i.location}<br>  🆔 Barcode: ${i.barcode}<br>  🚚 Lieferant: ${i.supplier || 'Unbekannt'}<br>  📊 Min-Bestand: ${i.minStock || 0}`;
+                }).join("<br><br>• ");
+                aiText = `**Detail-Analyse zu deiner Suchanfrage:**<br><br>• ${list}`;
+            }
+        }
+        // 8. Gesamtbestand
+        else if (msg.includes("bestand") || msg.includes("alles") || msg.includes("gesamt") || msg.includes("was") || msg.includes("lager")) {
             const available = state.inventory.filter(i => i.qty > 0);
             if (available.length > 0) {
-                let list = available.map(i => `**${i.qty}x** ${i.product}`).join("<br>• ");
-                aiText = "Hier ist ein schneller Überblick über unseren aktuellen Bestand:<br><br>• " + list;
+                const totalItems = available.reduce((sum, i) => sum + i.qty, 0);
+                let list = available.map(i => `**${i.qty}x** ${i.product} *(Fach: ${i.location})*`).join("<br>• ");
+                aiText = `Wir haben aktuell **${totalItems} Artikel** im gebuchten Bestand.<br><br>Hier ist die Detailansicht:<br><br>• ${list}`;
             } else {
-                aiText = "Unser Lager ist momentan komplett leer. Es gibt keinen gebuchten Bestand.";
+                aiText = "Unser Lager ist momentan komplett leer. Es gibt keinen aktiven Bestand.";
             }
-        }
-        // Logik 5: Wenn die KI die Frage nicht genau erkennt
+        } 
+        // 9. Fallback bei unbekannten Fragen
         else {
-            aiText = "Für diese Demo-Präsentation bin ich speziell auf **Bestandsabfragen** trainiert. Frag mich zum Beispiel einfach: *'Wie viele Notebooks haben wir?'* oder *'Zeig mir den aktuellen Bestand'*!";
+            aiText = "Das habe ich im Kontext unserer Datenbank nicht genau gefunden. Frag mich zum Beispiel:<br><br>• *'Zeig mir die Akte vom Lieferanten Bechtle'*<br>• *'Welche Artikel liegen im Sperrlager?'*<br>• *'Was waren die letzten Buchungen?'*<br>• *'Zeig mir die Details zu [Artikelname/Barcode]'*";
         }
 
         appendChatMessage(aiText, 'ai');
-    }, 1500);
+    }, 1200);
 }
 
 function appendChatMessage(text, sender) {
@@ -1766,10 +1846,11 @@ function appendChatMessage(text, sender) {
         msgDiv.style.borderRadius = "12px 12px 0 12px";
     } else {
         msgDiv.style.alignSelf = "flex-start";
-        msgDiv.style.background = "var(--primary-light)";
+        msgDiv.style.background = "var(--card-bg)";
         msgDiv.style.color = "var(--text-main)";
         msgDiv.style.borderRadius = "12px 12px 12px 0";
         msgDiv.style.border = "1px solid var(--border)";
+        msgDiv.style.boxShadow = "var(--shadow)";
     }
     
     // Einfache Formatierung für fettgedruckten Text (KI nutzt oft **text**)
