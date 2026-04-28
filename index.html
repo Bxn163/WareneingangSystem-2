@@ -759,13 +759,40 @@ function safeLoad(key, fallback) {
     catch (e) { return fallback; }
 }
 
-// ─── LOKALER STATE ───────────────────────────────────────────────────────────
+// ─── LOKALER STATE MIT BEISPIEL-DATEN AB FEBRUAR 2026 ────────────────────────
 let state = {
     currentUser: null,
     users: [{ email:"admin", password:"123", role:"superadmin" },{ email:"lager", password:"123", role:"employee" }],
-    records: [],
-    inventory: [],
-    audit: [],
+    
+    // Vorgefüllte Historie
+    records: [
+        { type:'OUT', id:1713600000000, date:'2026-04-20', time:'14:30', supplier:'Warenausgang', note:'Ticket #9012', product:'Peripherie', barcode:'BC-PER-5005', qtyIst:48, status:'Ausgebucht', user:'lager' },
+        { type:'IN', id:1711958400000, date:'2026-04-01', time:'09:15', supplier:'Dell Technologies', note:'LS-26-0401', product:'Server', barcode:'BC-SRV-4004', qtyIst:3, status:'Einlagern', location:'C-01', user:'admin' },
+        { type:'OUT', id:1710067200000, date:'2026-03-10', time:'11:00', supplier:'Warenausgang', note:'Ausstattung IT', product:'Notebooks', barcode:'BC-DELL-1001', qtyIst:5, status:'Ausgebucht', user:'admin' },
+        { type:'IN', id:1709635200000, date:'2026-03-05', time:'13:45', supplier:'Bechtle', note:'LS-26-0305', product:'Switches', barcode:'BC-BEC-3003', qtyIst:2, status:'Quarantäne', location:'Sperrlager', user:'lager', qaDetails:{type:'Transportschaden (Kartonage defekt)', notes:'Karton eingedrückt, Gehäuse verzogen.', photo:''} },
+        { type:'IN', id:1709116800000, date:'2026-02-28', time:'08:30', supplier:'Lenovo', note:'LS-26-0228', product:'Monitore', barcode:'BC-LEN-2002', qtyIst:20, status:'Einlagern', location:'B-05', user:'lager' },
+        { type:'IN', id:1707993600000, date:'2026-02-15', time:'10:20', supplier:'Dell Technologies', note:'LS-26-0215', product:'Notebooks', barcode:'BC-DELL-1001', qtyIst:15, status:'Einlagern', location:'A-02', user:'admin' },
+        { type:'IN', id:1707561600000, date:'2026-02-10', time:'15:00', supplier:'Bechtle', note:'LS-26-0210', product:'Peripherie', barcode:'BC-PER-5005', qtyIst:50, status:'Einlagern', location:'C-10', user:'lager' }
+    ],
+
+    // Vorgefüllter Warenbestand (passend zur Historie)
+    inventory: [
+        { barcode:'BC-DELL-1001', product:'Notebooks', qty:10, location:'A-02', minStock:5, supplier:'Dell Technologies' },
+        { barcode:'BC-LEN-2002', product:'Monitore', qty:20, location:'B-05', minStock:10, supplier:'Lenovo' },
+        { barcode:'BC-BEC-3003', product:'Switches', qty:2, location:'Sperrlager', minStock:1, supplier:'Bechtle' },
+        { barcode:'BC-SRV-4004', product:'Server', qty:3, location:'C-01', minStock:2, supplier:'Dell Technologies' },
+        { barcode:'BC-PER-5005', product:'Peripherie', qty:2, location:'C-10', minStock:10, supplier:'Bechtle' }
+    ],
+
+    // Vorgefülltes Audit-Log
+    audit: [
+        { date:'20.04.2026', time:'14:30:12', user:'lager', action:'WARENAUSGANG', details:'48x Peripherie (BC: BC-PER-5005) ausgebucht. Neuer Bestand: 2' },
+        { date:'01.04.2026', time:'09:16:05', user:'admin', action:'WARENEINGANG', details:'3x Server (BC: BC-SRV-4004) eingebucht in C-01.' },
+        { date:'10.03.2026', time:'11:01:22', user:'admin', action:'WARENAUSGANG', details:'5x Notebooks (BC: BC-DELL-1001) ausgebucht. Neuer Bestand: 10' },
+        { date:'05.03.2026', time:'13:46:30', user:'lager', action:'WARENEINGANG', details:'2x Switches (BC: BC-BEC-3003) eingebucht in Sperrlager.' },
+        { date:'15.02.2026', time:'10:21:40', user:'admin', action:'WARENEINGANG', details:'15x Notebooks (BC: BC-DELL-1001) eingebucht in A-02.' }
+    ],
+
     masterSuppliers: [], 
     masterProducts: ["Notebooks","Monitore","Server","Switches","Peripherie"],
     activeSessions: {}, 
