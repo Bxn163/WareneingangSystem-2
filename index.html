@@ -759,6 +759,16 @@ function safeLoad(key, fallback) {
     catch (e) { return fallback; }
 }
 
+const defaultSuppliers = [
+    { id: 1, name: "Bechtle", contact: "Key Account", email: "it-support@bechtle.com", phone: "+49 7132 981-0", orderUrl: "https://www.bechtle.com/shop" },
+    { id: 2, name: "Adobe", contact: "Account Management", email: "german-custserv@adobe.com", phone: "0800 7522581", orderUrl: "https://www.adobe.com/de/creativecloud/business.html" },
+    { id: 3, name: "Dell", contact: "Enterprise Support", email: "business_support@dell.com", phone: "+49 69 9792 0", orderUrl: "https://www.dell.com/de-de/lp/dt/premier" },
+    { id: 4, name: "Cisco Systems", contact: "Partner Support", email: "tac@cisco.com", phone: "+49 800 187 3652", orderUrl: "https://www.cisco.com/go/ordering" },
+    { id: 5, name: "Microsoft", contact: "Volume Licensing", email: "support@microsoft.com", phone: "+49 800 664 5323", orderUrl: "https://admin.microsoft.com" },
+    { id: 6, name: "Cancom", contact: "Vertriebsteam", email: "support@cancom.de", phone: "+49 89 54054-0", orderUrl: "https://shop.cancom.de" },
+    { id: 7, name: "Lenovo", contact: "Pro Support", email: "questions_de@lenovo.com", phone: "+49 711 65690807", orderUrl: "https://www.lenovo.com/de/de/business/" }
+];
+
 // ─── LOKALER STATE MIT BEISPIEL-DATEN AB FEBRUAR 2026 ────────────────────────
 let state = {
     currentUser: null,
@@ -767,20 +777,20 @@ let state = {
     // Vorgefüllte Historie
     records: [
         { type:'OUT', id:1713600000000, date:'2026-04-20', time:'14:30', supplier:'Warenausgang', note:'Ticket #9012', product:'Peripherie', barcode:'BC-PER-5005', qtyIst:48, status:'Ausgebucht', user:'lager' },
-        { type:'IN', id:1711958400000, date:'2026-04-01', time:'09:15', supplier:'Dell Technologies', note:'LS-26-0401', product:'Server', barcode:'BC-SRV-4004', qtyIst:3, status:'Einlagern', location:'C-01', user:'admin' },
+        { type:'IN', id:1711958400000, date:'2026-04-01', time:'09:15', supplier:'Dell', note:'LS-26-0401', product:'Server', barcode:'BC-SRV-4004', qtyIst:3, status:'Einlagern', location:'C-01', user:'admin' },
         { type:'OUT', id:1710067200000, date:'2026-03-10', time:'11:00', supplier:'Warenausgang', note:'Ausstattung IT', product:'Notebooks', barcode:'BC-DELL-1001', qtyIst:5, status:'Ausgebucht', user:'admin' },
         { type:'IN', id:1709635200000, date:'2026-03-05', time:'13:45', supplier:'Bechtle', note:'LS-26-0305', product:'Switches', barcode:'BC-BEC-3003', qtyIst:2, status:'Quarantäne', location:'Sperrlager', user:'lager', qaDetails:{type:'Transportschaden (Kartonage defekt)', notes:'Karton eingedrückt, Gehäuse verzogen.', photo:''} },
         { type:'IN', id:1709116800000, date:'2026-02-28', time:'08:30', supplier:'Lenovo', note:'LS-26-0228', product:'Monitore', barcode:'BC-LEN-2002', qtyIst:20, status:'Einlagern', location:'B-05', user:'lager' },
-        { type:'IN', id:1707993600000, date:'2026-02-15', time:'10:20', supplier:'Dell Technologies', note:'LS-26-0215', product:'Notebooks', barcode:'BC-DELL-1001', qtyIst:15, status:'Einlagern', location:'A-02', user:'admin' },
+        { type:'IN', id:1707993600000, date:'2026-02-15', time:'10:20', supplier:'Dell', note:'LS-26-0215', product:'Notebooks', barcode:'BC-DELL-1001', qtyIst:15, status:'Einlagern', location:'A-02', user:'admin' },
         { type:'IN', id:1707561600000, date:'2026-02-10', time:'15:00', supplier:'Bechtle', note:'LS-26-0210', product:'Peripherie', barcode:'BC-PER-5005', qtyIst:50, status:'Einlagern', location:'C-10', user:'lager' }
     ],
 
     // Vorgefüllter Warenbestand (passend zur Historie)
     inventory: [
-        { barcode:'BC-DELL-1001', product:'Notebooks', qty:10, location:'A-02', minStock:5, supplier:'Dell Technologies' },
+        { barcode:'BC-DELL-1001', product:'Notebooks', qty:10, location:'A-02', minStock:5, supplier:'Dell' },
         { barcode:'BC-LEN-2002', product:'Monitore', qty:20, location:'B-05', minStock:10, supplier:'Lenovo' },
         { barcode:'BC-BEC-3003', product:'Switches', qty:2, location:'Sperrlager', minStock:1, supplier:'Bechtle' },
-        { barcode:'BC-SRV-4004', product:'Server', qty:3, location:'C-01', minStock:2, supplier:'Dell Technologies' },
+        { barcode:'BC-SRV-4004', product:'Server', qty:3, location:'C-01', minStock:2, supplier:'Dell' },
         { barcode:'BC-PER-5005', product:'Peripherie', qty:2, location:'C-10', minStock:10, supplier:'Bechtle' }
     ],
 
@@ -793,7 +803,7 @@ let state = {
         { date:'15.02.2026', time:'10:21:40', user:'admin', action:'WARENEINGANG', details:'15x Notebooks (BC: BC-DELL-1001) eingebucht in A-02.' }
     ],
 
-    masterSuppliers: [], 
+    masterSuppliers: defaultSuppliers, 
     masterProducts: ["Notebooks","Monitore","Server","Switches","Peripherie"],
     activeSessions: {}, 
     settings: safeLoad("lt9_settings", { theme:'light', fontSize:'medium', color:'#2563eb', compact:false, workflow:'dash', sounds:true, dateFormat:'DE', logo:'' })
@@ -810,9 +820,9 @@ db.collection("logitrack").doc("globalState").onSnapshot((doc) => {
         state.masterProducts = data.masterProducts || state.masterProducts;
         state.activeSessions = data.activeSessions || {}; 
         
-        let rawSuppliers = data.masterSuppliers || ["Bechtle","Dell Technologies","Lenovo"];
-        state.masterSuppliers = rawSuppliers.map(s => {
-            if(typeof s === 'string') return { id:Date.now()+Math.random(), name:s, email:'', contact:'', phone:'', orderUrl:'' };
+        state.masterSuppliers = data.masterSuppliers && data.masterSuppliers.length > 0 ? data.masterSuppliers : defaultSuppliers;
+        state.masterSuppliers = state.masterSuppliers.map((s, idx) => {
+            if(typeof s === 'string') return { id:Date.now()+idx, name:s, email:'', contact:'', phone:'', orderUrl:'' };
             return s;
         });
 
@@ -919,7 +929,6 @@ document.getElementById("setWorkflow").addEventListener("change",  e=>{ state.se
 document.getElementById("setSounds").addEventListener("change",    e=>{ state.settings.sounds=e.target.checked;   save(); playSound('success'); });
 document.getElementById("setDateFormat").addEventListener("change",e=>{ state.settings.dateFormat=e.target.value; save(); renderAll(); });
 
-// NEU: Logo Upload Logic (mit automatischer Komprimierung)
 document.getElementById("setLogo").addEventListener("change", e => {
     const file = e.target.files[0];
     if(!file) return;
@@ -946,13 +955,22 @@ window.clearLogo = () => { state.settings.logo = ''; document.getElementById("se
 
 window.factoryReset = () => {
     if(prompt("ACHTUNG! Geben Sie 'RESET' ein, um ALLE Daten aus der Cloud zu löschen:") === "RESET") {
-        logAudit("FACTORY RESET","System zurückgesetzt.");
-        setTimeout(() => { 
-            localStorage.clear(); 
-            db.collection("logitrack").doc("globalState").delete().then(() => {
-                location.reload(); 
-            });
-        }, 400);
+        const defaultState = {
+            users: [{ email:"admin", password:"123", role:"superadmin" },{ email:"lager", password:"123", role:"employee" }],
+            records: [],
+            inventory: [],
+            audit: [],
+            masterProducts: ["Notebooks","Monitore","Server","Switches","Peripherie"],
+            activeSessions: {},
+            masterSuppliers: defaultSuppliers,
+            settings: { theme:'light', fontSize:'medium', color:'#2563eb', compact:false, workflow:'dash', sounds:true, dateFormat:'DE', logo:'' }
+        };
+        
+        localStorage.clear();
+        db.collection("logitrack").doc("globalState").set(defaultState).then(() => {
+            alert("System wurde erfolgreich auf Werkseinstellungen zurückgesetzt.");
+            location.reload(); 
+        });
     }
 };
 
